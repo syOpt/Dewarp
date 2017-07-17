@@ -14,9 +14,10 @@ public:
 	Dewarpper(const char *);
 	~Dewarpper();
 
-	int dewarp();
-	int setImage(const char *);
-	void show();
+	int dewarp();  // ½ÃÕıÊéÒ³
+	int setImage(const char *);  // ÔØÈëÊéÒ³Í¼Ïñ
+	void show();  // ÏÔÊ¾Í¼Ïñ
+	int save(const char *);  // ±£´æÍ¼Ïñ
 
 private:
 	PageImage img;  // Í¼Æ¬
