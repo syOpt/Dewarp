@@ -14,18 +14,17 @@ public:
 	Dewarpper(const char *);
 	~Dewarpper();
 
-	int dewarp();  // 矫正书页
+	int dewarp(); 
 	int setImage(const char *);  // 载入书页图像
-	void show();  // 显示图像
-	int save(const char *);  // 保存图像
+	void save(const char *);
+
+	static enum ERROR_TYPE;
 
 private:
 	PageImage img;  // 图片
 	vector<PageImage::Boundary> *bounds;  // 保存版面分析的结果
 	vector<PageImage::Boundary> *LayoutRecognization();  // 版面分析算法
-	void setArea(PageImage::Boundary);  // 设置矫正区域
 	int preProcedure();  // 预处理算法
-	int reconstruct();  // 图像重构算法
 	int calcLineHeight();  // 计算行高
 	int getTextLine();  // 文本线拟合算法
 	int reshape();  // 重新构图算法

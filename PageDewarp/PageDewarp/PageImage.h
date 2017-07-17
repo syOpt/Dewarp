@@ -19,26 +19,6 @@ public:
 	PageImage(const char *);
 	~PageImage();
 
-	void setImage(const Mat &);
-	void setImage(const char *);
-	void setBoundary(int, int, int, int);
-	pair<int, int> getSize();
-	pair<int, int> getSizeActual();
-	void showImage();
-	void saveImage();
-	void saveImage(const char *);
-
-	const uchar* getRow(const int &);
-	const uchar getPixel(const int &, const int &);
-	void setPixel(const int &, const int &, const uchar &);
-	const uchar* vProject();
-	const uchar* hProject();
-	void grayScale();
-	void enhancement(int(*)(int));
-	void binary(const int &);
-	void dilate(const Mat *);
-	void reshape(pair<int, int>(*)(int, int));
-
 	class Boundary {
 	public:
 		Boundary() {};
@@ -47,6 +27,27 @@ public:
 
 		int x1, y1, x2, y2;
 	};
+
+	PageImage &setImage(const Mat &);
+	PageImage &setImage(const char *);
+	PageImage &setBoundary(const Boundary &);
+	PageImage &setBoundary(int, int, int, int);
+	pair<int, int> getSize() const ;
+	pair<int, int> getSizeActual() const ;
+	void showImage() const ;
+	void saveImage() const ;
+	void saveImage(const char *) const ;
+
+	const uchar* getRow(const int &) const ;
+	const uchar getPixel(const int &, const int &) const ;
+	PageImage &setPixel(const int &, const int &, const uchar &);
+	const int* vCountBlack() const ;
+	const int* hCountBlack() const ;
+	PageImage &grayScale();
+	void enhancement(const int *);
+	PageImage &binary(const int = -1);
+	void dilate(const Mat *);
+	void reshape(pair<int, int>(*)(int, int));
 
 private:
 	Mat *img;  // ±£´æÍ¼Æ¬
@@ -57,6 +58,6 @@ private:
 
 	void setFileInfo(const char *);
 	void setImageInfo();
-	void doSave(const string &);
+	void doSave(const string &) const ;
 };
 

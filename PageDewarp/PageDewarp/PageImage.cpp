@@ -20,7 +20,7 @@ PageImage::~PageImage() {
 	delete img;
 }
 
-void PageImage::setImage(const Mat &m) {
+PageImage &PageImage::setImage(const Mat &m) {
 	/* 用一个Mat对象设置PageImage对象保存的图片。
 	PageImage对象丢弃现有的数据，保存传入的Mat的副本，
 	并初始化类内参数
@@ -29,9 +29,10 @@ void PageImage::setImage(const Mat &m) {
 	setFileInfo(nullptr);
 	img = new Mat(m);
 	setImageInfo();
+	return *this;
 }
 
-void PageImage::setImage(const char *fileName) {
+PageImage &PageImage::setImage(const char *fileName) {
 	/* 用一个文件名设置PageImage对象保存的图片。
 	PageImage对象丢弃现有的数据，以cv::Mat格式保存传入的图像文件，
 	并初始化类内参数
@@ -40,112 +41,131 @@ void PageImage::setImage(const char *fileName) {
 	setFileInfo(fileName);
 	img = new Mat(imread(fileName));
 	setImageInfo();
+	return *this;
 }
 
-void PageImage::setBoundary(int a, int b, int c, int d) {
+PageImage &PageImage::setBoundary(const Boundary &b) {
+	/* 设置图像的活动区域
+	*/
+	bound = b;
+	return *this;
+}
+
+PageImage &PageImage::setBoundary(int a, int b, int c, int d) {
 	/* 设置图像的活动区域
 	*/ 
 	bound = Boundary(a, b, c, d);
+	return *this;
 }
 
-pair<int, int> PageImage::getSize() {
-	/* 返回图像活动区域的大小
+pair<int, int> PageImage::getSize() const {
+	/* 返回图像活动区域的宽、高
 	*/
 	return pair<int, int>(bound.x2 - bound.x1 + 1, bound.y2 - bound.y1 + 1);
 }
 
-pair<int, int> PageImage::getSizeActual() {
+pair<int, int> PageImage::getSizeActual() const {
 	/* 返回图像的实际大小
 	*/
 	return pair<int, int>(width, height);
 }
 
-void PageImage::showImage() {
+void PageImage::showImage() const {
 	/* 显示图像
 	*/
 	imshow("image", *img); 
 	waitKey(); //此函数等待按键，按键盘任意键就返回
 }
 
-void PageImage::saveImage() {
+void PageImage::saveImage() const {
 	/* 使用默认文件名和类型保存图像
 	*/
 	doSave(fileDirAndName + '.' + fileType);
 }
 
-void PageImage::saveImage(const char *f) {
+void PageImage::saveImage(const char *f) const {
 	/* 指定文件名和类型保存图像
 	*/
 	doSave(f);
 }
 
-const uchar * PageImage::getRow(const int &r) {
+const uchar * PageImage::getRow(const int &r) const {
 	/* 返回指定行的头指针
 	*/
 	return img->ptr<uchar>(r);
 }
 
-const uchar PageImage::getPixel(const int &r, const int &c) {
+const uchar PageImage::getPixel(const int &r, const int &c) const {
 	/* 返回指定行列的像素值
 	*/
 	return img->ptr<uchar>(r)[c];
 }
 
-void PageImage::setPixel(const int &r, const int &c, const uchar &value) {
+PageImage &PageImage::setPixel(const int &r, const int &c, const uchar &value) {
 	/* 设置指定行列的像素值
 	*/
 	img->ptr<uchar>(r)[c] = value;
+	return *this;
 }
 
-const uchar* PageImage::vProject() {
-	/* 将图像在竖直方向上投影，警告：若使用完成后不delete返回的指针将造成内存泄漏
+const int* PageImage::vCountBlack() const {
+	/* 将图像在竖直方向上投影，统计黑色像素点个数。警告：若使用完成后不delete返回的指针将造成内存泄漏。
+	若图像未二值化，则结果无意义
 	*/
 	int sz = getSize().first;
-	uchar *ret = new uchar[sz];
+	int *ret = new int[sz];
+	for (int i = 0; i < sz; ++i) ret[i] = 0;
 
 	for (int i = bound.y1; i <= bound.y2; ++i) {
 		uchar *p = img->ptr<uchar>(i);
 		int j = 0, col = j + bound.x1;
 		while (j < sz) {
-			ret[j++] += p[col++];
+			if (p[col++] == 0) ++ret[j];
+			j++;
 		}
 	}
 
 	return ret;
 }
 
-const uchar * PageImage::hProject() {
-	/* 将图像在水平方向上投影，警告：若使用完成后不delete返回的指针将造成内存泄漏
+const int * PageImage::hCountBlack() const {
+	/* 将图像在水平方向上投影，统计黑色像素点个数。警告：若使用完成后不delete返回的指针将造成内存泄漏。
 	*/
 	int sz = getSize().second;
-	uchar *ret = new uchar[sz];
+	int *ret = new int[sz];
 
 	int i = 0, row = i + bound.y1;
 	while (i < sz) {
-		uchar *p = img->ptr<uchar>(row++);
+		ret[i] = 0;
+		uchar *p = img->ptr<uchar>(row);
 		for (int j = bound.x1; j <= bound.x2; ++j) {
-			ret[i] += p[j];
+			if (p[j] == 0) ++ret[i];
 		}
 		++i;
+		++row;
 	}
 
 	return ret;
 }
 
-void PageImage::grayScale() {
-	/* 将图像灰度化。使用cvtColor
+PageImage &PageImage::grayScale() {
+	/* 将全部图像（不止活动区域）灰度化。灰度化后，图像类型为CV_8UC1。使用cvtColor实现。
 	*/
-	Mat *newImg = new Mat(height, width, CV_8UC1);
-	cvtColor(*img, *newImg, CV_RGB2GRAY);
-	delete img;
-	img = newImg;
+	cvtColor(*img, *img, CV_RGB2GRAY);
+	return *this;
 }
 
-void PageImage::binary(const int &thre) {
-	/* 将图像二值化。使用cvThreshold
+PageImage &PageImage::binary(const int thre) {
+	/* 将全部图像（不止活动区域）二值化。使用cvThreshold实现。
+	若不指定参数，或指定一个超出范围[0, 255]的阈值，则程序使用OTSU算法进行二值化，
+	否则使用指定的阈值二值化。
 	*/
-	//////////////////////////////FixMe/////////////////////////////
-	cvThreshold(img, img, 300, 255, CV_THRESH_OTSU | CV_THRESH_BINARY_INV);
+	if (thre < 0 || thre > 255) {
+		threshold(*img, *img, 100, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
+	} else {
+		threshold(*img, *img, thre, 255, CV_THRESH_BINARY);
+	}
+	return *this;
 }
 
 void PageImage::setFileInfo(const char *fileName) {
@@ -153,7 +173,7 @@ void PageImage::setFileInfo(const char *fileName) {
 	*/
 	bool findDot = false;
 	// 一次遍历输入的字符串，将‘.’之前的视作文件路径和文件名，之后的视为文件类型
-	while (fileName++) {
+	while (*fileName) {
 		if (!findDot) {
 			if (*fileName == '.') {
 				findDot = true;
@@ -163,6 +183,7 @@ void PageImage::setFileInfo(const char *fileName) {
 		} else {
 			fileType += *fileName;
 		}
+		++fileName;
 	}
 	// 对非常规的输入做特殊处理
 	if (fileDirAndName.empty()) {
@@ -184,8 +205,19 @@ void PageImage::setImageInfo() {
 	bound = Boundary(0, 0, width - 1, height - 1);
 }
 
-void PageImage::doSave(const string &fileName) {
+void PageImage::doSave(const string &fileName) const {
 	/* 私有函数，保存图像到文件
 	*/
-	imwrite(fileName, *img);
+	int rows = getSize().second, cols = getSize().first;
+	Mat temp(rows, cols, CV_8UC1);
+	int i = 0, r = bound.y1;
+	while (i < rows) {
+		uchar *pOri = img->ptr<uchar>(r++);
+		uchar *pNew = temp.ptr<uchar>(i++);
+		int j = 0, c = bound.x1;
+		while (j < cols) {
+			pNew[j++] = pOri[c++];
+		}
+	}
+	imwrite(fileName, temp);
 }
