@@ -63,23 +63,24 @@ int Dewarpper::preProcedure() {
 	/* 预处理。在这一步进行灰度、二值化。如dewarp()函数的注释所述，由于假设图像是
 	纯文本的，因此无版面识别操作，需要在这预处理部分裁剪掉图像的白边
 	*/
-	img.grayScale();
-	img.binary();
-	auto vprj = img.vCountBlack(), hprj = img.hCountBlack();
-	int wid = img.getSize().first, ht = img.getSize().second;
-	int sumblk = 0, vThre, hThre;
+	// 图像灰度化、二值化
+	img.grayScale().binary();
+	// 裁剪，去除白边
+	auto vprj = img.vCountBlack(), hprj = img.hCountBlack();  // 将图像向行、列方向投影，统计黑色像素点个数
+	int wid = img.getSize().first, ht = img.getSize().second;  // 获得图像宽、高
+	int sumblk = 0, vThre, hThre;  // sumblk记录全图黑色像素点个数，vThre、hThre分别是竖直和水平方向裁剪的阈值
 	for (int i = 0; i < wid; ++i) {
 		sumblk += vprj[i];
 	}
 	double t = 0.3;  // 0.3是经验值。由于书页不可避免的弯曲、倾斜，用该值调整阈值可以避免将有效但处于边缘位置的文字切除
 	vThre = (t * sumblk) / wid;
 	hThre = (t * sumblk) / ht;
-	int x1 = 0, y1 = 0, x2 = wid - 1, y2 = ht - 1;
-	while (vprj[x1] < vThre) ++x1;
+	int x1 = 0, y1 = 0, x2 = wid - 1, y2 = ht - 1; 
+	while (vprj[x1] < vThre) ++x1;  // 按算得的阈值寻找裁剪的位置
 	while (vprj[x2] < vThre) --x2;
 	while (hprj[y1] < hThre) ++y1;
 	while (hprj[y2] < hThre) --y2;
-	img.setBoundary(x1, y1, x2, y2);
+	img.setBoundary(x1, y1, x2, y2);  // 设置图像的活动区域，从而起“裁剪”的效果
 	delete []vprj;
 	delete []hprj;
 	return 0;
