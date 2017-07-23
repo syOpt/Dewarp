@@ -10,9 +10,14 @@ using namespace cv;
 
 int main(int argc, char* argv[])
 {
-	char *fileName = "testPics/CHS001.tif";
-	Dewarpper dw(fileName);
-	dw.show();
+	char *fileIn = "testIn/CHS001.tif";
+	char *fileOut = "testOut/CHS001.tif";
+	Dewarpper dw(fileIn);
+	int ret = dw.dewarp();
+	if (ret) {
+		cout << "Dewarp failed. Error code: " << ret << endl;
+	} else {
+		dw.save(fileOut);
+	}
 	return 0;
 }
-
