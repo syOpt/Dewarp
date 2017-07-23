@@ -4,6 +4,7 @@
 PageImage::PageImage() {
 	/* 默认初始化
 	*/
+	img = new Mat();
 }
 
 PageImage::PageImage(const char *fileName) {
@@ -47,14 +48,14 @@ PageImage &PageImage::setImage(const char *fileName) {
 PageImage &PageImage::setBoundary(const Boundary &b) {
 	/* 设置图像的活动区域
 	*/
-	bound = b;
+	doSetBoundary(b);
 	return *this;
 }
 
 PageImage &PageImage::setBoundary(int a, int b, int c, int d) {
 	/* 设置图像的活动区域
 	*/ 
-	bound = Boundary(a, b, c, d);
+	doSetBoundary(Boundary(a, b, c, d));
 	return *this;
 }
 
@@ -92,19 +93,47 @@ void PageImage::saveImage(const char *f) const {
 const uchar * PageImage::getRow(const int &r) const {
 	/* 返回指定行的头指针
 	*/
-	return img->ptr<uchar>(r);
+	int rt = r + bound.y1;
+	if (rt < 0 || rt > bound.y2) {
+		throw range_error("Row index out of range.");
+	}
+	return img->ptr<uchar>(rt);
+}
+
+uchar * PageImage::getColomn(const int &c) const {
+	/* 返回指定列。该列为一个临时生成的动态数组，使用后若不delete会产生内存泄漏。
+	数组元素是将Mat中的数据拷贝进去得到的
+	*/
+	int ct = c + bound.x1;
+	if (ct < 0 || ct > bound.x2) {
+		throw range_error("Colomn index out of range.");
+	}
+	int sz = getSize().second;
+	uchar *ret = new uchar[sz];
+	for (int i = bound.y1, j = 0; i <= bound.y2; ++i) {
+		ret[j++] = img->ptr<uchar>(i)[ct];
+	}
+	return ret;
 }
 
 const uchar PageImage::getPixel(const int &r, const int &c) const {
 	/* 返回指定行列的像素值
 	*/
-	return img->ptr<uchar>(r)[c];
+	int rt = r + bound.y1, ct = c + bound.x1;
+	if (rt < 0 || rt >(bound.y2) || ct < 0 || ct >(bound.x2)) {
+		throw range_error("Pixel index out of range.");
+	}
+	return img->ptr<uchar>(rt)[ct];
 }
 
 PageImage &PageImage::setPixel(const int &r, const int &c, const uchar &value) {
 	/* 设置指定行列的像素值
 	*/
-	img->ptr<uchar>(r)[c] = value;
+	int rt = r + bound.y1, ct = c + bound.x1;
+	if (rt < 0 || rt >(bound.y2) || ct < 0 || ct >(bound.x2)) {
+		throw range_error("Pixel index out of range.");
+	}
+	img->ptr<uchar>(rt)[ct] = value;
 	return *this;
 }
 
@@ -168,6 +197,30 @@ PageImage &PageImage::binary(const int thre) {
 	return *this;
 }
 
+PageImage & PageImage::bwDilate(const pair<int, int> &kernel, const int iter) const {
+	/* 图像膨胀。参数：矩形膨胀核（模版）的尺寸，迭代次数。返回一个新的PageImage对象的引用，该对象内的img成员保存了膨胀的结果。
+	用cv::dilate实现
+	*/
+	Mat elem = getStructuringElement(MORPH_RECT, Size(kernel.first, kernel.second), Point(-1, -1));
+	PageImage *ret = new PageImage();
+	dilate(*img, *(ret->img), elem, Point(-1, -1), iter);
+	ret->setImageInfo();
+	ret->setBoundary(bound);
+	return *ret;
+}
+
+PageImage & PageImage::bwErode(const pair<int, int> &kernel, const int iter) const {
+	/* 图像腐蚀。参数：矩形腐蚀核（模版）的尺寸，迭代次数。返回一个新的PageImage对象的引用，该对象内的img成员保存了腐蚀的结果。
+	用cv::erode实现
+	*/
+	Mat elem = getStructuringElement(MORPH_RECT, Size(kernel.first, kernel.second), Point(-1, -1));
+	PageImage *ret = new PageImage();
+	erode(*img, *(ret->img), elem, Point(-1, -1), iter);
+	ret->setImageInfo();
+	ret->setBoundary(bound);
+	return *ret;
+}
+
 void PageImage::setFileInfo(const char *fileName) {
 	/* 私有函数，设置文件名、文件类型信息
 	*/
@@ -203,6 +256,15 @@ void PageImage::setImageInfo() {
 	width = img->cols;
 	height = img->rows;
 	bound = Boundary(0, 0, width - 1, height - 1);
+}
+
+void PageImage::doSetBoundary(const Boundary &b) {
+	/* 私有函数，执行设置活动区域。若输入参数越界，则抛出异常。
+	*/
+	if (b.x1 < 0 || b.y1 < 0 || b.x2 >(width - 1) || b.y2 >(height - 1) || b.x2 < b.x1 || b.y2 < b.y1) {
+		throw invalid_argument("Invalid boundary argument(s).");
+	}
+	bound = b;
 }
 
 void PageImage::doSave(const string &fileName) const {

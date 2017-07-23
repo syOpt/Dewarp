@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "Dewarpper.h"
+#include <numeric>
 
 enum ERROR_TYPE {SUCCESS, LAYOUTREC_FAILURE};
 
@@ -39,8 +40,8 @@ int Dewarpper::dewarp() {
 	}
 	*/
 	preProcedure();
-	calcLineHeight();
-	getTextLine();
+	int lineHt = calcLineHeight();
+	getTextLine(lineHt);
 	reshape();
 	return 0;
 }
@@ -48,7 +49,7 @@ int Dewarpper::dewarp() {
 void Dewarpper::save(const char *fileName) {
 	/* 使用提供的文件名保存当前图像
 	*/
-	img.saveImage(fileName);
+	doSave(&img, fileName);
 }
 
 vector<PageImage::Boundary>* Dewarpper::LayoutRecognization() {
@@ -87,14 +88,86 @@ int Dewarpper::preProcedure() {
 }
 
 int Dewarpper::calcLineHeight() {
-	return 0;
+	/* 计算行高。现在是手动定参数的，如何自动确定参数是难点。
+	*/
+	double avgLineHeight = 0.0;
+	int elemWidth = 0, elemHeight = 0;  // 结构元素宽、高
+	pair<int, int> elem;
+	// 开运算，去除噪声点
+	elemWidth = 4; elemHeight = 4;
+	setElem(elem, elemWidth, elemHeight);
+	PageImage ret = img.bwDilate(elem).bwErode(elem);
+	doSave(&ret, "testOut/CHS001Open.tif");
+	// 腐蚀一次，计算一次行高，当迭代的行高变化量小于结构元素高度或达到设置的次数上限时终止
+	elemWidth = 20, elemHeight = 2;
+	setElem(elem, elemWidth, elemHeight);
+	int sy = 0, maxIter = 8;
+	bool nextIter = true;
+	while (nextIter && (sy++ < maxIter)) {
+		// 腐蚀
+		ret = ret.bwErode(elem);
+		doSave(&ret, string("testOut/CHS001Erode" + to_string(sy) + ".tif").c_str());
+		// 选取页面的1/3、1/2、2/3三列计算各行高
+		double newAvgLineHeight = 0.0;
+		pair<int, int> sz = ret.getSize();
+		int wid = sz.first, ht = sz.second;
+		const int sampleNum = 3;
+		double rfPos[sampleNum] = { 0.33, 0.5, 0.67 };
+		list<int> lineHeights;  // 记录各行高
+		for (int i = 0; i < sampleNum; ++i) {
+			int pos = rfPos[i] * wid;
+			uchar *col = ret.getColomn(pos);
+			int count = 0;  // 行高值计数器
+			for (int j = 0; j < ht; ++j) {
+				if (col[j] == 0) {
+					++count;  // 遇到黑点，累加计数器
+				} else {  // 遇到白点
+					if (count) {  // 若计数器中有值，则记下该值（一个行高）后计数器归零
+						lineHeights.push_back(count);
+						count = 0;
+					}
+				}
+			}
+		}
+		// 由采样得到的各行高计算均值
+		if (!lineHeights.empty()) {
+			// 滤噪：计算各行高的均值，然后去除各行高中小于均值一半的值和大于均值一倍的值
+			newAvgLineHeight = 1.0 * std::accumulate(lineHeights.cbegin(), lineHeights.cend(), 0) / lineHeights.size();
+			auto i = lineHeights.begin();
+			while (i != lineHeights.end()) {
+				if (*i < newAvgLineHeight / 2 || *i > newAvgLineHeight * 2) {
+					i = lineHeights.erase(i);
+				} else {
+					++i;
+				}
+			}
+		}
+		if (!lineHeights.empty()) {
+			// 重新计算滤噪后的平均行高
+			newAvgLineHeight = 1.0 * std::accumulate(lineHeights.cbegin(), lineHeights.cend(), 0) / lineHeights.size();
+			if (abs(newAvgLineHeight - avgLineHeight) < elemHeight) {
+				nextIter = false;  // 若本次迭代结果与上一次之差小于结构元素的高，则终止迭代
+			}
+			avgLineHeight = newAvgLineHeight;
+			cout << sy << ": " << avgLineHeight << "\n";
+		} else {  // 若未发现有效行高，可能发生了错误
+			cerr << "Error may have occurred during calculation of the height of lines.";
+		}		
+	}
+	return avgLineHeight;
 }
 
-int Dewarpper::getTextLine() {
+int Dewarpper::getTextLine(const int &lineHt) {
 	return 0;
 }
 
 int Dewarpper::reshape() {
 	return 0;
+}
+
+void Dewarpper::doSave(const PageImage *saveImg, const char *fileName) const {
+	/* 私有函数，执行保存图像
+	*/
+	saveImg->saveImage(fileName);
 }
 

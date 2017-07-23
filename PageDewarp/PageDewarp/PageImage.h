@@ -38,14 +38,16 @@ public:
 	void saveImage(const char *) const ;
 
 	const uchar* getRow(const int &) const ;
+	uchar* getColomn(const int &) const ;
 	const uchar getPixel(const int &, const int &) const ;
 	PageImage &setPixel(const int &, const int &, const uchar &);
 	const int* vCountBlack() const ;
 	const int* hCountBlack() const ;
-	PageImage &grayScale();
+	PageImage & grayScale();
 	void enhancement(const int *);
-	PageImage &binary(const int = -1);
-	void dilate(const Mat *);
+	PageImage & binary(const int = -1);
+	PageImage & bwDilate(const pair<int, int> &, const int = 1) const ;
+	PageImage & bwErode(const pair<int, int> &, const int = 1) const ;
 	void reshape(pair<int, int>(*)(int, int));
 
 private:
@@ -57,6 +59,7 @@ private:
 
 	void setFileInfo(const char *);
 	void setImageInfo();
+	void doSetBoundary(const Boundary &);
 	void doSave(const string &) const ;
 };
 

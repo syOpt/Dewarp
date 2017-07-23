@@ -14,8 +14,8 @@ public:
 	~Dewarpper();
 
 	int dewarp(); 
-	int setImage(const char *);  // 载入书页图像
-	void save(const char *);
+	//int setImage(const char *);  // 载入书页图像
+	void save(const char *);  // 保存图像
 
 	static enum ERROR_TYPE;
 
@@ -25,7 +25,10 @@ private:
 	vector<PageImage::Boundary> *LayoutRecognization();  // 版面分析算法
 	int preProcedure();  // 预处理算法
 	int calcLineHeight();  // 计算行高
-	int getTextLine();  // 文本线拟合算法
+	int getTextLine(const int &);  // 文本线拟合算法
 	int reshape();  // 重新构图算法
+	void doSave(const PageImage *, const char *) const ;  // 执行保存图像
+
+	inline void setElem(pair<int, int> &elem, const int &a, const int &b) { elem.first = a; elem.second = b; }
 };
 
