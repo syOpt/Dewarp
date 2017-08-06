@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "Dewarpper.h"
+#include "Fitting.h"
 #include <numeric>
 
 enum ERROR_TYPE {SUCCESS, LAYOUTREC_FAILURE};
@@ -154,10 +155,141 @@ int Dewarpper::calcLineHeight() {
 			cerr << "Error may have occurred during calculation of the height of lines.";
 		}		
 	}
+	
+	//为了方便先将查找文本线写到计算行高一起
+	pair<int, int> sz = ret.getSize();
+	int wid = sz.first, ht = sz.second;
+	const int startpoint = 0.5*wid;   //确定模板搜索起点位置
+	uchar *startcol = ret.getColomn(startpoint);  //得到模板搜索起始列的参数
+	int  i = 0, CountLine = 0;
+	const int Maxline = 50;      //每页最大行数
+	Caltextline textline[Maxline];   
+	bool LineJudge = true;
+	while (LineJudge) {
+		if (startcol[i] == 0) {    //检测到新的一行
+			list<int> pointX;    //建立记录每点坐标的容器
+			list<int> pointY;
+			int pointYstart = 0, pointYstart2=0, pointYHeight = 1.4*avgLineHeight;
+			int pointXright = startpoint, pointXleft = startpoint;  //向左向右进行模板搜索的起点
+			for (int j = i + pointYHeight; j > i; j--) {
+				if (startcol[j] == 0) { 
+					pointYstart2 = j;
+					break; 
+				}
+			}
+			pointYstart = (pointYstart2 + i) / 2;   //得到模板搜索起始列的Y坐标
+			pointX.push_back(startpoint);
+			pointY.push_back(pointYstart);
+
+			while (true) {  //向左进行模板搜索
+				pointXleft -= avgLineHeight;
+				if (pointXleft <= 0) break;  //防止越界
+				int pointY1 = 0, pointY2 = 0;
+				uchar *leftcol = ret.getColomn(pointXleft);
+				int draftuppoint = pointYstart - 0.7*avgLineHeight, draftdownpoint = pointYstart + 0.7*avgLineHeight;
+				int uppoint = max(0, draftuppoint), downpoint = min(ht, draftdownpoint); //确定每次模板搜索上界与下届，且不越过边界
+																						 //分别为从上界开始往下检索与从下界开始网上检索，找到黑色像素即停止
+				for (int Y1 = uppoint; Y1 < downpoint; Y1++) {
+					if (leftcol[Y1] == 0) {
+						pointY1 = Y1;
+						break;
+					}
+				}
+				for (int Y2 = downpoint; Y2 > uppoint; Y2--) {
+					if (leftcol[Y2] == 0) {
+						pointY2 = Y2;
+						break;
+					}
+				}
+				pointYstart = (pointY1 + pointY2) / 2;
+				pointX.push_back(pointXleft);
+				pointY.push_back(pointYstart);
+
+				//判断模板搜索终止条件（到达边界或下一个模板检测不到黑色像素）
+				bool judge = false;
+				if ((pointXleft - avgLineHeight) > 0) {
+					uchar *nextcol = ret.getColomn(pointXleft - avgLineHeight);
+					for (int j = uppoint; j < downpoint; j++) {
+						if (nextcol[j] == 0) {
+							judge = true;
+							break;
+						}
+					}
+				} else break;
+				if (!judge) break;
+			}
+
+			while (true) {  //向右进行模板搜索
+				pointXright += avgLineHeight;
+				if (pointXright >= wid) break; //防止越界
+				int pointY1 = 0, pointY2 = 0;
+				uchar *rightcol = ret.getColomn(pointXright);
+				int draftuppoint = pointYstart - 0.7*avgLineHeight, draftdownpoint = pointYstart + 0.7*avgLineHeight;
+				int uppoint=max(0,draftuppoint), downpoint=min(ht,draftdownpoint); //确定每次模板搜索上界与下届，且不越过图片范围
+				//分别为从上界开始往下检索与从下界开始往上检索，找到黑色像素即停止
+				for (int Y1 = uppoint; Y1 < downpoint; Y1++) {
+					if (rightcol[Y1] == 0) {			
+						pointY1 = Y1;
+						break;
+					}
+				}
+				for (int Y2 = downpoint; Y2 > uppoint; Y2--) {
+					if (rightcol[Y2] == 0) {
+						pointY2 = Y2;
+						break;
+					}
+				}
+				pointYstart = (pointY1 + pointY2) / 2;
+				pointX.push_back(pointXright);
+				pointY.push_back(pointYstart);
+
+				//判断模板搜索终止条件（到达边界或下一个模板检测不到黑色像素）
+				bool judge = false;
+				if ((pointXright + avgLineHeight) < wid) {
+					uchar *nextcol = ret.getColomn(pointXright + avgLineHeight);
+					for (int j = uppoint; j < downpoint; j++) {
+						if (nextcol[j] == 0) {
+							judge = true;
+							break;
+						}
+					}
+				} else break;
+				if (!judge) break;
+			}		
+			
+			//测试某一行检索到的点的代码
+			/*
+			if (CountLine == 0) {
+				cout << endl;
+				auto l = pointX.begin();
+				while (l != pointX.end()) {
+					cout << *l << '\t';
+					l++;
+				}
+				cout << endl;
+				auto k = pointY.begin();
+				while (k != pointY.end()) {
+					cout << *k << '\t';
+					k++;
+				}
+				cout << endl;
+			}	
+			*/
+			textline[CountLine].Fitting(pointX, pointY); //拟合曲线
+			cout << "第" << CountLine+1 << "行：" << '\t';
+			for (int k = 0; k < FittingN; k++) cout << textline[CountLine].Coefficient[k] << '\t';
+			cout << endl;
+			CountLine++;   //行数加一
+			i += pointYHeight; //跳过目前行的黑点继续往下纵向检索
+		}
+		else if (i < ht) i++;
+	    else LineJudge = false; //纵向检索终止条件
+	}
 	return avgLineHeight;
 }
 
 int Dewarpper::getTextLine(const int &lineHt) {
+
 	return 0;
 }
 

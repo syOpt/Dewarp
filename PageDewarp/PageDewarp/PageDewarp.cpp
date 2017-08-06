@@ -10,7 +10,7 @@ using namespace cv;
 
 int main(int argc, char* argv[])
 {
-	char *fileIn = "testIn/CHS001.tif";
+	char *fileIn = "testIn/ZWB_4464.JPG";
 	char *fileOut = "testOut/CHS001.tif";
 	Dewarpper dw(fileIn);
 	int ret = dw.dewarp();
