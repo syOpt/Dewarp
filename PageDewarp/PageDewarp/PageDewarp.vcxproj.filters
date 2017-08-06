@@ -33,6 +33,9 @@
     <ClInclude Include="PageImage.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="Fitting.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -48,6 +51,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="PageImage.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Fitting.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
