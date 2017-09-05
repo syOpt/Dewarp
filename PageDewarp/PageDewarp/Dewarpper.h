@@ -1,5 +1,7 @@
 #pragma once
 #include "PageImage.h"
+#include <numeric>
+#include <opencv2/opencv.hpp>
 
 class Dewarpper {
 	/*
@@ -10,25 +12,30 @@ class Dewarpper {
 	*/
 public:
 	Dewarpper();
-	Dewarpper(const char *);
+	Dewarpper(PageImage image);
 	~Dewarpper();
 
 	int dewarp(); 
 	//int setImage(const char *);  // 载入书页图像
 	void save(const char *);  // 保存图像
-
+	string picName;  //记录图片名称
 	static enum ERROR_TYPE;
 
 private:
 	PageImage img;  // 图片
-	vector<PageImage::Boundary> *bounds;  // 保存版面分析的结果
-	vector<PageImage::Boundary> *LayoutRecognization();  // 版面分析算法
+	PageImage ret;
+	shared_ptr<vector<cv::Rect>> *bounds;  // 保存版面分析的结果
+	vector<cv::Rect> *LayoutRecognization();  // 版面分析算法
 	int preProcedure();  // 预处理算法
 	int calcLineHeight();  // 计算行高
 	int getTextLine(const int &);  // 文本线拟合算法
-	int reshape();  // 重新构图算法
+	int reshape(const int &);  // 重新构图算法
 	void doSave(const PageImage *, const char *) const ;  // 执行保存图像
+	list<list<double>> coefficientM;
+	int lineHeight;
+
 
 	inline void setElem(pair<int, int> &elem, const int &a, const int &b) { elem.first = a; elem.second = b; }
+	//assist function
+	bool bufcnt(bool cond,int buf, int threshold,int maxBuf = 50);
 };
-
